@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INFOSIGHT - Advanced Website Security Scanner</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px #0ff;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #0ff;
+        }
+        input[type="text"], button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 5px;
+            background-color: #111;
+            color: #fff;
+            transition: all 0.3s ease;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            box-shadow: 0 0 10px #0ff;
+        }
+        button {
+            background-color: #0ff;
+            color: #000;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #00ffff80;
+            box-shadow: 0 0 15px #0ff;
+        }
+        .scan-types {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #0ff;
+            border-radius: 5px;
+        }
+        .scan-type {
+            margin: 5px 0;
+        }
+        .results-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .result-column {
+            flex: 1;
+            min-width: 300px;
+            background-color: #111;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+        .result-box {
+            background-color: #1a1a1a;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            transition: transform 0.3s ease-in-out;
+        }
+        .result-box:hover {
+            transform: scale(1.02);
+        }
+        #error {
+            color: #ff3333;
+            text-align: center;
+            margin-top: 10px;
+        }
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 5px #0ff, 0 0 10px #0ff;
+            }
+            to {
+                text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>INFOSIGHT - Advanced Website Security Scanner</h1>
+        <form id="scan-form">
+            <div class="form-group">
+                <label for="website">Enter Website URL or Domain:</label>
+                <input type="text" id="website" name="website" required>
+            </div>
+            <div class="form-group">
+                <label>Select Nmap Scan Types:</label>
+                <div class="scan-types" id="scan-types-container">
+                    <!-- Scan types will be dynamically populated here -->
+                </div>
+            </div>
+            <button type="submit">Start Comprehensive Scan</button>
+        </form>
+        <div id="error"></div>
+        <div class="results-container">
+            <div class="result-column">
+                <h2>VirusTotal Results</h2>
+                <div id="virustotal-results"></div>
+            </div>
+            <div class="result-column">
+                <h2>NSLOOKUP Results</h2>
+                <div id="nslookup-results"></div>
+            </div>
+            <div class="result-column">
+                <h2>Nmap Scan Results</h2>
+                <div id="nmap-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Populate scan types
+    const scanTypes = {
+        'intense_scan': '-T4 -A -v',
+        'ping_scan': '-sn',
+        'quick_scan_plus': '-sV -T4 -O -F --version-light',
+        'regular_scan': '',
+        'quick_scan': '-T4 -F',
+        'tcp_connect_scan': '-sT',
+        'syn_scan': '-sS',
+        'udp_scan': '-sU',
+        'service_version_scan': '-sV',
+        'os_detection_scan': '-O'
+    };
+
+    const scanTypesContainer = document.getElementById('scan-types-container');
+    for (const [key, value] of Object.entries(scanTypes)) {
+        const div = document.createElement('div');
+        div.className = 'scan-type';
+        div.innerHTML = `
+            <input type="checkbox" id="${key}" name="scan_types" value="${key}">
+            <label for="${key}">${key.replace('_', ' ').toUpperCase()} (${value})</label>
+        `;
+        scanTypesContainer.appendChild(div);
+    }
+
+    // Form submission handler
+    document.getElementById('scan-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const website = document.getElementById('website').value.trim();
+        const selectedScanTypes = Array.from(document.querySelectorAll('input[name="scan_types"]:checked')).map(el => el.value);
+        
+        if (!website) {
+            document.getElementById('error').innerText = 'Please enter a website URL or domain';
+            return;
+        }
+
+        if (selectedScanTypes.length === 0) {
+            document.getElementById('error').innerText = 'Please select at least one Nmap scan type';
+            return;
+        }
+
+        document.getElementById('error').innerText = '';
+        document.getElementById('virustotal-results').innerHTML = '<p>Scanning...</p>';
+        document.getElementById('nslookup-results').innerHTML = '<p>Looking up...</p>';
+        document.getElementById('nmap-results').innerHTML = '<p>Preparing scan...</p>';
+
+        try {
+            // VirusTotal Scan
+            const vtResponse = await fetch('/virustotal_scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `website=${encodeURIComponent(website)}`
+            });
+            const vtData = await vtResponse.json();
+            displayVirusTotalResults(vtData);
+
+            // NSLOOKUP
+            const nsResponse = await fetch('/nslookup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ domain: website })
+            });
+            const nsData = await nsResponse.json();
+            displayNSLOOKUPResults(nsData);
+
+            // Nmap Scan (using IP from NSLOOKUP)
+            if (nsData.ip_info && nsData.ip_info.ip) {
+                const nmapResponse = await fetch('/nmap_scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ip_address: nsData.ip_info.ip,
+                        scan_types: selectedScanTypes
+                    })
+                });
+                const nmapData = await nmapResponse.json();
+                displayNmapResults(nmapData);
+            } else {
+                document.getElementById('nmap-results').innerHTML = '<p>Could not perform Nmap scan: IP address not found</p>';
+            }
+        } catch (error) {
+            document.getElementById('error').innerText = `An error occurred: ${error.message}`;
+        }
+    });
+
+    function displayVirusTotalResults(data) {
+        const resultsDiv = document.getElementById('virustotal-results');
+        if (data.error) {
+            resultsDiv.innerHTML = `<div class="result-box"><p>Error: ${data.error}</p></div>`;
+        } else {
+            let html = '';
+            if (data.positives.length > 0) {
+                html += '<div class="result-box"><h3>Positive Results:</h3><ul>';
+                data.positives.forEach(result => {
+                    html += `<li>${result}</li>`;
+                });
+                html += '</ul></div>';
+            }
+            if (data.negatives.length > 0) {
+                html += '<div class="result-box"><h3>Negative Results:</h3><ul>';
+                data.negatives.forEach(result => {
+                    html += `<li>${result}</li>`;
+                });
+                html += '</ul></div>';
+            }
+            resultsDiv.innerHTML = html || '<p>No results found</p>';
+        }
+    }
+
+    function displayNSLOOKUPResults(data) {
+        const resultsDiv = document.getElementById('nslookup-results');
+        if (data.message) {
+            resultsDiv.innerHTML = `<div class="result-box"><p>${data.message}</p></div>`;
+        }
+        if (data.ip_info) {
+            let html = '<div class="result-box"><h3>IP Information:</h3><ul>';
+            for (const [key, value] of Object.entries(data.ip_info)) {
+                html += `<li><strong>${key}:</strong> ${value}</li>`;
+            }
+            html += '</ul></div>';
+            resultsDiv.innerHTML += html;
+        }
+    }
+
+    function displayNmapResults(data) {
+        const resultsDiv = document.getElementById('nmap-results');
+        if (data.error) {
+            resultsDiv.innerHTML = `<div class="result-box"><p>Error: ${data.error}</p></div>`;
+        } else if (data.result) {
+            resultsDiv.innerHTML = `<div class="result-box"><pre>${data.result}</pre></div>`;
+        } else {
+            resultsDiv.innerHTML = '<p>No results found</p>';
+        }
+    }
+    </script>
+</body>
+</html>
